@@ -27,8 +27,9 @@ SCRIPT_URL = "https://server-oty8.onrender.com"
     INPUT_CUSTOM_NAME, INPUT_CUSTOM_DURATION, INPUT_CUSTOM_MAX,
     INPUT_DELETE_KEY,
     INPUT_UNREVOKE_KEY,
-    INPUT_SETMSG_KEY, INPUT_SETMSG_TEXT
-) = range(11)
+    INPUT_SETMSG_KEY, INPUT_SETMSG_TEXT,
+    INPUT_EXTEND_KEY, SELECT_EXTEND_DURATION
+) = range(13)
 
 # ======================
 # KEEP ALIVE SERVER
@@ -97,7 +98,8 @@ Please select an option from the menu Kaze:"""
         [InlineKeyboardButton("⚡ List Keys", callback_data="act_listact"), 
          InlineKeyboardButton("🔴 Revoked History", callback_data="act_listhist")],
         [InlineKeyboardButton("🔥 Custom Key", callback_data="act_custom"),
-         InlineKeyboardButton("💬 Custom Message", callback_data="act_setmsg")]
+         InlineKeyboardButton("💬 Custom Message", callback_data="act_setmsg")],
+        [InlineKeyboardButton("⏳ Extend Key Expiration", callback_data="act_extend")] # <--- IDAGDAG ITO
     ]
     
     update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -182,6 +184,11 @@ def handle_db(update: Update, context: CallbackContext):
     elif action == "unrevoke":
         context.bot.send_message(chat_id=query.message.chat_id, text=f"🟢 **Database:** {db_name}\n\n➡️ **Enter key to UNREVOKE (Make Active Again):**", reply_markup=ForceReply(selective=True), parse_mode="Markdown")
         return INPUT_UNREVOKE_KEY
+
+    # ---- FLOW: EXTEND KEY EXPIRATION ----
+    elif action == "extend":
+        context.bot.send_message(chat_id=query.message.chat_id, text=f"⏳ **Database:** {db_name}\n\n➡️ **Enter key to EXTEND expiration:**", reply_markup=ForceReply(selective=True), parse_mode="Markdown")
+        return INPUT_EXTEND_KEY
 
     # ---- FLOW 5: LIST UNREVOKED / HISTORY KEYS ----
     elif action in ["listact", "listhist"]:
@@ -393,6 +400,43 @@ def execute_setmsg_text(update: Update, context: CallbackContext):
         update.message.reply_text(f"❌ Error: {e}")
     return ConversationHandler.END
 
+def receive_extend_key(update: Update, context: CallbackContext):
+    target_key = update.message.text.strip()
+    context.user_data["target_extend_key"] = target_key
+    
+    keyboard = [
+        [InlineKeyboardButton("+1 Day", callback_data="extdur_1d"), InlineKeyboardButton("+3 Days", callback_data="extdur_3d")],
+        [InlineKeyboardButton("+7 Days", callback_data="extdur_7d"), InlineKeyboardButton("+30 Days", callback_data="extdur_30d")],
+        [InlineKeyboardButton("Lifetime", callback_data="extdur_lifetime")]
+    ]
+    update.message.reply_text(f"⏳ **Target Key:** `{target_key}`\n\nPiliin kung gaano katagal ang idaragdag na expiration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    return SELECT_EXTEND_DURATION
+
+def confirm_extend_duration(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+    
+    duration = query.data.replace("extdur_", "")
+    target_key = context.user_data.get("target_extend_key")
+    panel_url = context.user_data.get("panel_url")
+    db_choice = context.user_data.get("db")
+    db_name = "CODM INJECTOR" if db_choice == "injector" else "CODM SCRIPT"
+    
+    try:
+        url = f"{panel_url}/extend?key={target_key}&duration={duration}"
+        r = requests.get(url, timeout=15).json()
+        
+        if r.get("status") == "success":
+            msg = f"✅ **SUCCESSFULLY EXTENDED!**\n━━━━━━━━━━━━━━━━━━━━\n🔰 DB: `{db_name}`\n🔑 KEY: `{target_key}`\n➕ ADDED: `{duration}`\n━━━━━━━━━━━━━━━━━━━━"
+        else:
+            msg = f"❌ **Error:** {r.get('message', 'Unknown error')}"
+            
+        query.edit_message_text(text=msg, parse_mode="Markdown")
+    except Exception as e:
+        query.edit_message_text(text=f"❌ Connection Error: {e}")
+        
+    return ConversationHandler.END
+
 def cancel(update: Update, context: CallbackContext):
     update.message.reply_text("❌ Process cancelled.")
     return ConversationHandler.END
@@ -433,6 +477,8 @@ def main():
             INPUT_CUSTOM_MAX: [MessageHandler(Filters.text & ~Filters.command, execute_custom_max)],
             INPUT_SETMSG_KEY: [MessageHandler(Filters.text & ~Filters.command, execute_setmsg_key)],
             INPUT_SETMSG_TEXT: [MessageHandler(Filters.text & ~Filters.command, execute_setmsg_text)],
+            INPUT_EXTEND_KEY: [MessageHandler(Filters.text & ~Filters.command, receive_extend_key)],
+            SELECT_EXTEND_DURATION: [CallbackQueryHandler(confirm_extend_duration, pattern="^extdur_")],
         },
         fallbacks=[CommandHandler("cancel", cancel)]
     )
