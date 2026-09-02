@@ -400,6 +400,17 @@ def execute_setmsg_text(update: Update, context: CallbackContext):
         update.message.reply_text(f"❌ Error: {e}")
     return ConversationHandler.END
 
+def receive_extend_key(update: Update, context: CallbackContext):
+    target_key = update.message.text.strip()
+    context.user_data["target_extend_key"] = target_key
+    
+    update.message.reply_text(
+        f"⏳ **Target Key:** `{target_key}`\n\n➡️ **Enter Duration to Add (e.g., 12h, 1d, 7d, 30d, lifetime):**",
+        reply_markup=ForceReply(selective=True),
+        parse_mode="Markdown"
+    )
+    return SELECT_EXTEND_DURATION
+
 def receive_extend_duration(update: Update, context: CallbackContext):
     duration = update.message.text.strip()
     target_key = context.user_data.get("target_extend_key")
