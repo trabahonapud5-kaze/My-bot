@@ -400,17 +400,6 @@ def execute_setmsg_text(update: Update, context: CallbackContext):
         update.message.reply_text(f"❌ Error: {e}")
     return ConversationHandler.END
 
-def receive_extend_key(update: Update, context: CallbackContext):
-    target_key = update.message.text.strip()
-    context.user_data["target_extend_key"] = target_key
-    
-    update.message.reply_text(
-        f"⏳ **Target Key:** `{target_key}`\n\n➡️ **Enter Duration to Add (e.g., 12h, 1d, 7d, 30d, lifetime):**",
-        reply_markup=ForceReply(selective=True),
-        parse_mode="Markdown"
-    )
-    return SELECT_EXTEND_DURATION
-
 def receive_extend_duration(update: Update, context: CallbackContext):
     duration = update.message.text.strip()
     target_key = context.user_data.get("target_extend_key")
@@ -423,7 +412,14 @@ def receive_extend_duration(update: Update, context: CallbackContext):
         r = requests.get(url, timeout=15).json()
         
         if r.get("status") == "success":
-            msg = f"✅ **SUCCESSFULLY EXTENDED!**\n━━━━━━━━━━━━━━━━━━━━\n🔰 DB: `{db_name}`\n🔑 KEY: `{target_key}`\n➕ ADDED: `{duration}`\n━━━━━━━━━━━━━━━━━━━━"
+            new_expiry_str = r.get("remaining_time", "Updated successfully")
+            msg = f"""✅ **KEY EXTENDED SUCCESSFULLY!**
+━━━━━━━━━━━━━━━━━━━━
+🔰 DB: `{db_name}`
+🔑 KEY: `{target_key}`
+➕ ADDED: `{duration}`
+⏳ NEW REMAINING: `{new_expiry_str}`
+━━━━━━━━━━━━━━━━━━━━"""
         else:
             msg = f"❌ **Error:** {r.get('message', 'Unknown error')}"
             
@@ -432,7 +428,7 @@ def receive_extend_duration(update: Update, context: CallbackContext):
         update.message.reply_text(f"❌ Connection Error: {e}")
         
     return ConversationHandler.END
-
+    
 def cancel(update: Update, context: CallbackContext):
     update.message.reply_text("❌ Process cancelled.")
     return ConversationHandler.END
