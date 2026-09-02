@@ -404,19 +404,15 @@ def receive_extend_key(update: Update, context: CallbackContext):
     target_key = update.message.text.strip()
     context.user_data["target_extend_key"] = target_key
     
-    keyboard = [
-        [InlineKeyboardButton("+1 Day", callback_data="extdur_1d"), InlineKeyboardButton("+3 Days", callback_data="extdur_3d")],
-        [InlineKeyboardButton("+7 Days", callback_data="extdur_7d"), InlineKeyboardButton("+30 Days", callback_data="extdur_30d")],
-        [InlineKeyboardButton("Lifetime", callback_data="extdur_lifetime")]
-    ]
-    update.message.reply_text(f"⏳ **Target Key:** `{target_key}`\n\nPiliin kung gaano katagal ang idaragdag na expiration:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    update.message.reply_text(
+        f"⏳ **Target Key:** `{target_key}`\n\n➡️ **Enter Duration to Add (e.g., 12h, 1d, 7d, 30d, lifetime):**",
+        reply_markup=ForceReply(selective=True),
+        parse_mode="Markdown"
+    )
     return SELECT_EXTEND_DURATION
 
-def confirm_extend_duration(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-    
-    duration = query.data.replace("extdur_", "")
+def receive_extend_duration(update: Update, context: CallbackContext):
+    duration = update.message.text.strip()
     target_key = context.user_data.get("target_extend_key")
     panel_url = context.user_data.get("panel_url")
     db_choice = context.user_data.get("db")
@@ -431,9 +427,9 @@ def confirm_extend_duration(update: Update, context: CallbackContext):
         else:
             msg = f"❌ **Error:** {r.get('message', 'Unknown error')}"
             
-        query.edit_message_text(text=msg, parse_mode="Markdown")
+        update.message.reply_text(msg, parse_mode="Markdown")
     except Exception as e:
-        query.edit_message_text(text=f"❌ Connection Error: {e}")
+        update.message.reply_text(f"❌ Connection Error: {e}")
         
     return ConversationHandler.END
 
@@ -470,7 +466,7 @@ def main():
             ],
             INPUT_REVOKE_KEY: [MessageHandler(Filters.text & ~Filters.command, execute_revoke)],
             INPUT_DELETE_KEY: [MessageHandler(Filters.text & ~Filters.command, execute_delete)],
-            INPUT_UNREVOKE_KEY: [MessageHandler(Filters.text & ~Filters.command, execute_unrevoke)], # <--- Idagdag itong linya!
+            INPUT_UNREVOKE_KEY: [MessageHandler(Filters.text & ~Filters.command, execute_unrevoke)],
             INPUT_RESET_KEY: [MessageHandler(Filters.text & ~Filters.command, execute_reset)],
             INPUT_CUSTOM_NAME: [MessageHandler(Filters.text & ~Filters.command, execute_custom_name)],
             INPUT_CUSTOM_DURATION: [MessageHandler(Filters.text & ~Filters.command, execute_custom_duration)],
@@ -478,7 +474,7 @@ def main():
             INPUT_SETMSG_KEY: [MessageHandler(Filters.text & ~Filters.command, execute_setmsg_key)],
             INPUT_SETMSG_TEXT: [MessageHandler(Filters.text & ~Filters.command, execute_setmsg_text)],
             INPUT_EXTEND_KEY: [MessageHandler(Filters.text & ~Filters.command, receive_extend_key)],
-            SELECT_EXTEND_DURATION: [CallbackQueryHandler(confirm_extend_duration, pattern="^extdur_")],
+            SELECT_EXTEND_DURATION: [MessageHandler(Filters.text & ~Filters.command, receive_extend_duration)],
         },
         fallbacks=[CommandHandler("cancel", cancel)]
     )
