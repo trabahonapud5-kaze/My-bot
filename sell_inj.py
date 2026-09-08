@@ -28,7 +28,7 @@ SCRIPT_URL = "https://test-server-6yzy.onrender.com"
     INPUT_DELETE_KEY,
     INPUT_UNREVOKE_KEY,
     INPUT_SETMSG_KEY, INPUT_SETMSG_TEXT,
-    INPUT_EXTEND_KEY, SELECT_EXTEND_DURATION
+    INPUT_EXTEND_KEY, SELECT_EXTEND_DURATION,  # <--- Kailangan din ng comma dito!
     INPUT_UNREG_USER
 ) = range(14)
 
