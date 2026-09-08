@@ -513,8 +513,8 @@ def main():
             INPUT_SETMSG_KEY: [MessageHandler(Filters.text & ~Filters.command, execute_setmsg_key)],
             INPUT_SETMSG_TEXT: [MessageHandler(Filters.text & ~Filters.command, execute_setmsg_text)],
             INPUT_EXTEND_KEY: [MessageHandler(Filters.text & ~Filters.command, receive_extend_key)],
-            SELECT_EXTEND_DURATION: [MessageHandler(Filters.text & ~Filters.command, receive_extend_duration)],
             INPUT_UNREG_USER: [MessageHandler(Filters.text & ~Filters.command, execute_unreg_user)],
+            SELECT_EXTEND_DURATION: [MessageHandler(Filters.text & ~Filters.command, receive_extend_duration)],            
         },
         fallbacks=[CommandHandler("cancel", cancel)]
     )
