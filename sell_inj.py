@@ -457,16 +457,28 @@ def execute_unreg_user(update: Update, context: CallbackContext):
     panel_url = context.user_data.get("panel_url", INJECTOR_URL)
 
     try:
-        # Pwede mong palitan ang endpoint depende sa server route mo
-        r = requests.get(f"{panel_url}/unregister_bot_user?identifier={requests.utils.quote(target_user)}", timeout=15).json()
+        response = requests.get(f"{panel_url}/unregister_bot_user?identifier={requests.utils.quote(target_user)}", timeout=15)
+        
+        # I-check muna kung 200 OK ang status ng server
+        if response.status_code != 200:
+            update.message.reply_text(f"❌ Server Error: Nag-return ang server ng status code {response.status_code}.\nMalamang ay wala pa o sira ang route na ito sa server mo.")
+            return ConversationHandler.END
+
+        # Subuking basahin ang JSON, i-handle kung sakaling HTML o plain text ang ibinigay
+        try:
+            r = response.json()
+        except ValueError:
+            update.message.reply_text(f"❌ Error: Hindi valid JSON ang tugon ng server.\nRaw response: {response.text[:100]}")
+            return ConversationHandler.END
         
         if r.get("status") == "success":
             update.message.reply_text(
-                f"✅ **USER UNREGISTERED SUCCESSFULLY!**\n\n👤 Target: `{target_user}`\n📌 *Status:* Na-clear na ang data niya. Pwede na siyang mag-/start ulit para mag-register mula sa simula.",
+                f"✅ **USER UNREGISTERED SUCCESSFULLY!**\n\n👤 Target: `{target_user}`\n📌 *Status:* Na-clear na ang data niya.",
                 parse_mode="Markdown"
             )
         else:
             update.message.reply_text(f"❌ **Error:** {r.get('message', 'User not found in database.')}", parse_mode="Markdown")
+            
     except Exception as e:
         update.message.reply_text(f"❌ Connection Error: {e}")
         
