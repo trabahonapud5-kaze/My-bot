@@ -29,7 +29,8 @@ SCRIPT_URL = "https://server-oty8.onrender.com"
     INPUT_UNREVOKE_KEY,
     INPUT_SETMSG_KEY, INPUT_SETMSG_TEXT,
     INPUT_EXTEND_KEY, SELECT_EXTEND_DURATION
-) = range(13)
+    INPUT_UNREG_USER
+) = range(14)
 
 # ======================
 # KEEP ALIVE SERVER
@@ -99,7 +100,8 @@ Please select an option from the menu Kaze:"""
          InlineKeyboardButton("🔴 Revoked History", callback_data="act_listhist")],
         [InlineKeyboardButton("🔥 Custom Key", callback_data="act_custom"),
          InlineKeyboardButton("💬 Custom Message", callback_data="act_setmsg")],
-        [InlineKeyboardButton("⏳ Extend Key Expiration", callback_data="act_extend")] # <--- IDAGDAG ITO
+        [InlineKeyboardButton("⏳ Extend Key Expiration", callback_data="act_extend")],
+        [InlineKeyboardButton("👤 Unregister Bot User", callback_data="act_unreg")] # <--- INLINE BUTTON NA IDAGDAG
     ]
     
     update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
@@ -189,6 +191,16 @@ def handle_db(update: Update, context: CallbackContext):
     elif action == "extend":
         context.bot.send_message(chat_id=query.message.chat_id, text=f"⏳ **Database:** {db_name}\n\n➡️ **Enter key to EXTEND expiration:**", reply_markup=ForceReply(selective=True), parse_mode="Markdown")
         return INPUT_EXTEND_KEY
+
+    # ---- FLOW: UNREGISTER BOT USER INLINE ----
+    elif action == "unreg":
+        context.bot.send_message(
+            chat_id=query.message.chat_id, 
+            text="👤 **UNREGISTER BOT USER**\n\n➡️ **Enter the Username or Telegram ID to block/clear (e.g., @KAZEHAYAMODZ):**", 
+            reply_markup=ForceReply(selective=True), 
+            parse_mode="Markdown"
+        )
+        return INPUT_UNREG_USER
 
     # ---- FLOW 5: LIST UNREVOKED / HISTORY KEYS ----
     elif action in ["listact", "listhist"]:
@@ -439,6 +451,26 @@ def receive_extend_duration(update: Update, context: CallbackContext):
         update.message.reply_text(f"❌ Connection Error: {e}")
         
     return ConversationHandler.END
+
+def execute_unreg_user(update: Update, context: CallbackContext):
+    target_user = update.message.text.strip()
+    panel_url = context.user_data.get("panel_url", INJECTOR_URL)
+
+    try:
+        # Pwede mong palitan ang endpoint depende sa server route mo
+        r = requests.get(f"{panel_url}/unregister_bot_user?identifier={requests.utils.quote(target_user)}", timeout=15).json()
+        
+        if r.get("status") == "success":
+            update.message.reply_text(
+                f"✅ **USER UNREGISTERED SUCCESSFULLY!**\n\n👤 Target: `{target_user}`\n📌 *Status:* Na-clear na ang data niya. Pwede na siyang mag-/start ulit para mag-register mula sa simula.",
+                parse_mode="Markdown"
+            )
+        else:
+            update.message.reply_text(f"❌ **Error:** {r.get('message', 'User not found in database.')}", parse_mode="Markdown")
+    except Exception as e:
+        update.message.reply_text(f"❌ Connection Error: {e}")
+        
+    return ConversationHandler.END
     
 def cancel(update: Update, context: CallbackContext):
     update.message.reply_text("❌ Process cancelled.")
@@ -482,6 +514,7 @@ def main():
             INPUT_SETMSG_TEXT: [MessageHandler(Filters.text & ~Filters.command, execute_setmsg_text)],
             INPUT_EXTEND_KEY: [MessageHandler(Filters.text & ~Filters.command, receive_extend_key)],
             SELECT_EXTEND_DURATION: [MessageHandler(Filters.text & ~Filters.command, receive_extend_duration)],
+            INPUT_UNREG_USER: [MessageHandler(Filters.text & ~Filters.command, execute_unreg_user)],
         },
         fallbacks=[CommandHandler("cancel", cancel)]
     )
